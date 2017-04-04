@@ -5,15 +5,18 @@
 ###########################################
 # set working directory to ~/package/R/FlightDelay
 # << fill code >>
-setwd("~/package/R/FlightDelay")
+setwd("~/FlightData-Prediction/")
 
 ###########################################
 # library loading and predefined functions
 ###########################################
 # Hint: you can use library rpart and rpart.plot to build decision tree model
 # rpart manual: https://cran.r-project.org/web/packages/rpart/rpart.pdf
-# Load libraries 
+# Load libraries
 # << fill code >>
+#install.packages("gtools")
+#install.packages("rpart")
+#install.packages("sqldf")
 library(gtools) # for binsearch
 library(rpart)
 
@@ -38,8 +41,8 @@ totalFlightArriveBefore <- function(data,flight,periodLength){
   count <- 0
   for(i in 1:ncol(data)){
     row <- data[i,]
-    if(row$CRS_ARR_TIME>=((arrival_time-15+2400)%%2400) 
-       && row$CRS_ARR_TIME<flight$CRS_ARR_TIME 
+    if(row$CRS_ARR_TIME>=((arrival_time-15+2400)%%2400)
+       && row$CRS_ARR_TIME<flight$CRS_ARR_TIME
        && row$DAY_OF_MONTH == flight$DAY_OF_MONTH){
       count = count + 1
     }
@@ -81,9 +84,9 @@ getListOfDestDF <- function(data){
 getArriveFrequency = function(data){
   arrivalTimes = data[,c('DAY_OF_MONTH','CRS_ARR_TIME','id')]
   arrivalTimes = arrivalTimes[ order(arrivalTimes[,1],arrivalTimes[,2]) ,]
-  arrivalTimesInFloat = arrivalTimes$DAY_OF_MONTH + arrivalTimes$CRS_ARR_TIME/2400.0 
+  arrivalTimesInFloat = arrivalTimes$DAY_OF_MONTH + arrivalTimes$CRS_ARR_TIME/2400.0
   arrivalTimesID = arrivalTimes$id;
-  
+
   vvv <- vector(mode="numeric", length=0)
   for(i in 1:length(arrivalTimesInFloat)){
     l <- lowerBound(arrivalTimesInFloat[i]-(periodLength/2400.0),1,length(arrivalTimesInFloat),arrivalTimesInFloat)
@@ -97,23 +100,23 @@ getArriveFrequency = function(data){
 
 addFreqFeature <- function(target_df){
   target_df = setUniqueID(target_df)
-  
-  
-  
+
+
+
   dest_list <- getListOfDestDF(target_df)
-  
+
   df <- getArriveFrequency(dest_list[[1]])
   for(i in 2:length(dest_list)){
     cat(i ," of ",length(dest_list), "\n")
     df <- rbind(df,getArriveFrequency(dest_list[[i]]))
   }
-  
+
   # merge output df together
   df <- rename(df,c("arrivalTimesID"="id"))
   df <- df[ order(df$id),]
   target_df <- cbind(arriveFreq=df$freq,target_df)
   return(target_df)
-} 
+}
 ###########################################
 # Main
 ###########################################
@@ -147,7 +150,7 @@ print(paste("number of testing data:",nrow(test_data)))   #number of testing dat
 # add at least 1 new features
 # << fill code >>
 
-# add unique id 
+# add unique id
 
 periodLength = 15 # in minutes
 train_data <- addFreqFeature(train_data)
@@ -164,7 +167,7 @@ test_data <- addFreqFeature(test_data)
 #  dest_list = list(dest_list,train_data[train_data$DEST_AIRPORT_ID == dest[i],c('DAY_OF_MONTH','CRS_ARR_TIME')])
 #}
 
- 
+
 
 
 #--------------------------------------
@@ -175,6 +178,8 @@ removeFeature <- function(data){
   data$MONTH <- NULL
   data$YEAR <- NULL
   data$CANCELLED <- NULL
+  data$DISTANCE <- NULL
+  data$DAY_OF_MONTH <- NULL
   return(data)
 }
 train_data <- removeFeature(train_data)
@@ -189,7 +194,7 @@ start.time <- Sys.time()
 # << fill code >>
 fit <- rpart(ARR_DEL15~.,data=train_data,method="class",control=rpart.control(minsplit=1, minbucket=1, cp=0.00001))
 plot(fit)
-text(fit)
+#text(fit)
 
 end.time <- Sys.time()
 time.taken <- end.time - start.time
